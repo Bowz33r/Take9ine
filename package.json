@@ -1,0 +1,1 @@
+{"name":"the-ninth-gift","version":"1.0.0","description":"An adventure and fighting game of owing, belonging and the rite that asks for one body.","main":"server.js","scripts":{"start":"node server.js"},"license":"MIT","dependencies":{"express":"^4.19.2","ws":"^8.17.0"}}

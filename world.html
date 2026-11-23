@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Ninth Gift: The Seven Cities</title>
+<style>
+body{margin:0;background:#1b2330;color:#f1ece2;font:17px/1.5 Georgia,serif}main{max-width:960px;margin:auto;padding:16px}
+button,input,select{font:inherit;padding:8px 12px;margin:3px;border-radius:8px;border:1px solid #8c8f99;background:#2b3547;color:#f1ece2;min-height:44px}
+button:hover:enabled{background:#e0b25a;color:#1b2330}button:disabled{opacity:.4}button:focus-visible,input:focus-visible{outline:3px solid #e0b25a}
+.card{border:1px solid #55607a;border-radius:10px;padding:12px;margin:8px 0}.bar{height:8px;background:#0e131b;border-radius:4px}.bar i{display:block;height:8px;background:#7fc79a;border-radius:4px}.foe i{background:#e0b25a}
+.log{font-size:15px;color:#cfd3de}.log p{margin:.2em 0}a{color:#e0b25a}
+</style><main><h1>The Seven Cities</h1><div id="ui"></div><form id="cf" hidden><input id="ct" maxlength="80" placeholder="Say something to your city" aria-label="Chat"><button>Say</button></form></main>
+<script src="engine.js"></script><script src="world.js"></script>
+<script>
+const $=i=>document.getElementById(i),U=$('ui'),NW_=NW;let W,ws,you,seen=0,say=1;
+if(!localStorage.getItem('ng-terms'))location.href='index.html';
+const off=/github\.io$/.test(location.hostname)||location.protocol==='file:';
+function lobby(){U.innerHTML=`<div class="card"><input id="nm" maxlength="16" placeholder="Your name" aria-label="Name"><select id="hr" aria-label="Hero">${Object.keys(NG.H).map(k=>`<option value="${k}">${NG.H[k].n}</option>`)}</select><br>
+<select id="sl" aria-label="Storyline">${NW.S.map((s,i)=>`<option value="${i}">${i+1}. ${s}</option>`)}</select><br>
+${off?'':'<input id="rm" maxlength="4" size="8" placeholder="Room code" aria-label="Room code"><button id="on">Host or join online (up to 68)</button><button id="tv">Shared screen</button><br>'}<button id="so">Play offline</button> <label><input type="checkbox" id="vo" checked> Voices</label></div>`;
+ $('so').onclick=()=>{say=$('vo').checked;W=new NW.World();you=W.addPlayer($('nm').value,$('hr').value,$('sl').value);start();draw(W.view(you))};
+ if(!off){$('on').onclick=()=>net(0);$('tv').onclick=()=>net(1)}}
+function net(t){say=t?1:0;ws=new WebSocket((location.protocol=='https:'?'wss':'ws')+'://'+location.host);
+ ws.onopen=()=>ws.send(JSON.stringify({t:'join',accepted:1,mode:'world',name:$('nm').value,hero:$('hr').value,story:$('sl').value,room:$('rm').value,tv:t}));
+ ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.t=='err'){alert(d.m);ws=null;return lobby()}you=d.you;if(!t)start();draw(d.s,d.code)}}
+function start(){$('cf').hidden=false}
+function A(a){ws?ws.send(JSON.stringify(a)):(W.act(you,a),draw(W.view(you)))}
+$('cf').onsubmit=e=>{e.preventDefault();if($('ct').value)A({a:'say',text:$('ct').value});$('ct').value=''};
+function speak(w,m){if(!say||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(m),vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)),h=[...w].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+ if(vs.length)u.voice=vs[h%vs.length];u.pitch=Math.min(1.6,.55+(h%11)/10);u.rate=.8+((h>>4)%5)/10;if(w.startsWith('T:'))u.pitch*=.55;speechSynthesis.speak(u)}
+function draw(v,code){const p=v.me,C=NW.C,B=(l,a,on=1)=>`<button ${on?'':'disabled'} data-a='${JSON.stringify(a)}'>${l}</button>`;
+ if(!p){U.innerHTML=`<div class="card"><b>${v.n} players</b>${code?` Room <b>${code}</b>`:''}<br>${C.map((c,i)=>`${c.n}: ${v.cities[i]}`).join(' | ')}<br>Top knots: ${v.top.map(t=>t.join(' ')).join(', ')}</div>`;return}
+ const f=p.f,rt=NW.route(p.si),bar=(a,b,c)=>`<div class="bar ${c||''}"><i style="width:${Math.max(0,100*a/b)}%"></i></div>`;let act='';
+ if(f)act=(f.k=='duel'?B('Strike',{a:'atk'})+B('Guard',{a:'guard'}):f.k=='debate'?[['gift','Gift'],['free','Freedom'],['face','Face']].map(x=>B(x[1],{a:'arg',s:x[0]})).join(''):[10,20,40].map(n=>B(`Offer ${n}`,{a:'offer',n},p.g>=n)).join(''))+B('Flee',{a:'flee'});
+ else act=`<div class="card"><b>Travel (5 knots, 2 with a vehicle)</b><br>${C.map((c,i)=>B(`${c.n} (${v.cities[i]})`,{a:'go',i},i!=p.city&&p.g>=(p.v.length?2:5))).join('')}</div>
+<div class="card"><b>Villagers</b><br>${C[p.city].v.map((n,i)=>B(`Talk: ${n}`,{a:'talk',i})).join('')}${B('Millet 15',{a:'buy',i:0},p.g>=15)}${B('Charm 30',{a:'buy',i:1},p.g>=30)}${B('Inn 10',{a:'buy',i:2},p.g>=10)}${B('Borrow 30 (owe 40)',{a:'borrow'})}${B('Repay',{a:'repay'},p.d>0&&p.g>0)}</div>
+<div class="card">${B('Hunt the local troll',{a:'hunt'})}${B(p.done?'Storyline complete':`Story step ${p.q+1}/3 in ${C[rt[p.q]].n}`,{a:'quest'},!p.done)}</div>
+<div class="card"><b>Move</b> (arrow keys work too)<br>${B('Up',{a:'move',dy:-1})}${B('Left',{a:'move',dx:-1})}${B('Right',{a:'move',dx:1})}${B('Down',{a:'move',dy:1})}<br><svg viewBox="0 0 100 100" width="150" height="150" role="img" aria-label="City map. You are gold. The dashed circle is how far your voice carries."><rect width="100" height="100" fill="#0e131b" stroke="#55607a"/><circle cx="${p.x}" cy="${p.y}" r="30" fill="none" stroke="#e0b25a" stroke-dasharray="3 3"/>${v.here.map(x=>`<circle cx="${x.x}" cy="${x.y}" r="3" fill="${x.near?'#7fc79a':'#8c8f99'}"/>`).join('')}<circle cx="${p.x}" cy="${p.y}" r="4" fill="#e0b25a"/></svg></div>
+<div class="card"><b>Garage</b><br>${p.v.map((x,i)=>`${x.n} ${x.sec?'(secured)':B('Secure 20',{a:'secure',i},p.g>=20)}`).join('<br>')||'No vehicles yet. Finish a story step to claim one.'}</div>
+<div class="card"><b>Nearby players</b> (chat only carries this far)<br>${v.here.filter(x=>x.near).map(x=>`${x.n} (${NG.H[x.h].n}) ${B('Gift 10',{a:'gift',to:x.id,n:10},p.g>=10)}${B('Spar 10',{a:'spar',to:x.id,n:10},p.g>=10)}<br>`).join('')||'No one within hearing range.'}</div>`;
+ U.innerHTML=`<div class="card"><b>${p.n}</b> (${NG.H[p.h].n}) in <b>${C[p.city].n}</b>. ${NW.S[p.si]}${p.done?' (done)':''}<br>HP ${p.hp}/${p.max}${bar(p.hp,p.max)}Knots ${p.g}${p.d?`, owes ${p.d}`:''}, wins ${p.w}, ${v.n} online${code?`, room ${code}`:''}</div>
+${f?`<div class="card foe"><b>${f.n}</b> ${f.hp}/${f.max}${bar(f.hp,f.max,'foe')}${f.k=='debate'?`<br>Argues from: <b>${{gift:'Gift',free:'Freedom',face:'Face'}[f.st]}</b>`:''}</div>`:''}${act}
+<div class="card log">${p.l.slice(-5).map(l=>`<p>${l.m}</p>`).join('')}<hr>${v.chat.slice(-6).map(m=>`<p>${m.replace(/</g,'&lt;')}</p>`).join('')}</div>`;
+ U.querySelectorAll('button[data-a]').forEach(x=>x.onclick=()=>A(JSON.parse(x.dataset.a)));
+ p.l.filter(l=>l.i>seen).forEach(l=>speak(l.w,l.m));if(p.l.length)seen=Math.max(seen,p.l[p.l.length-1].i)}
+document.addEventListener('keydown',e=>{if(!W&&!ws||e.target.tagName=='INPUT')return;const k={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(k){e.preventDefault();A({a:'move',dx:k[0],dy:k[1]})}});
+lobby();
+</script></html>

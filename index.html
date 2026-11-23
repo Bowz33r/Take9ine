@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Ninth Gift</title>
+<style>
+body{margin:0;background:#1b2330;color:#f1ece2;font:17px/1.5 Georgia,serif}main{max-width:920px;margin:auto;padding:16px}
+h1{font-size:2.2em;margin:.2em 0;letter-spacing:.02em}button,input,select{font:inherit;padding:10px 14px;margin:4px;border-radius:8px;border:1px solid #8c8f99;background:#2b3547;color:#f1ece2;min-height:44px}
+button:hover:enabled{background:#e0b25a;color:#1b2330}button:disabled{opacity:.4}button:focus-visible,input:focus-visible{outline:3px solid #e0b25a}
+.card{border:1px solid #55607a;border-radius:10px;padding:12px;margin:8px 0}.row{display:flex;flex-wrap:wrap;gap:8px}.row>.card{flex:1;min-width:190px}
+.bar{height:8px;background:#0e131b;border-radius:4px}.bar i{display:block;height:8px;background:#e0b25a;border-radius:4px}.hp i{background:#7fc79a}.me{outline:2px solid #e0b25a}
+.log{font-size:15px;color:#cfd3de}a{color:#e0b25a}.tv h1{font-size:3em}.tv{font-size:22px}
+</style><main id="m"></main><script src="engine.js"></script>
+<script>
+const M=document.getElementById('m'),V=3,$=i=>document.getElementById(i);
+let G,ws,net=0,tv=0,you=null,say=1,seen=0,S=null,code='';
+const VP={n:[1,.9],ilse:[1.1,1],kesh:[1.5,1.15],teodra:[.7,.85],anwe:[.9,1.05],e:[.5,.8]},IX={n:0,ilse:1,kesh:2,teodra:3,anwe:4,e:5};
+function speak(w,m){if(!say||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(m),vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));
+ if(vs.length)u.voice=vs[(IX[w]*2)%vs.length];[u.pitch,u.rate]=VP[w]||VP.n;speechSynthesis.speak(u)}
+const ok=()=>!!localStorage.getItem('ng-terms');
+function gate(){M.innerHTML=`<h1>The Ninth Gift</h1><p>An adventure and fighting game of owing, belonging, and the rite that asks for one body.</p>
+<div class="card"><label><input type="checkbox" id="ag"> I am 13 or older (or have a parent or guardian’s permission), and I agree to the <a href="legal.html" target="_blank">Terms, Disclaimers and Privacy Notice</a>, including the risks of playing on a shared network. You are asked once on this device.</label><br><button id="go" disabled>Continue</button></div>`;
+ $('ag').onchange=e=>$('go').disabled=!e.target.checked;
+ $('go').onclick=()=>{localStorage.setItem('ng-terms',JSON.stringify({v:V,at:new Date().toISOString()}));lobby()}}
+function lobby(){const H=NG.H,ks=Object.keys(H),off=/github\.io$/.test(location.hostname)||location.protocol==='file:';
+ M.innerHTML=`<h1>The Ninth Gift</h1><div class="card"><b>New: The Seven Cities</b> (up to 68 players, 15 storylines)<br><a href="world.html">Enter the world</a></div><div class="card"><b>Solo or hot-seat</b> (one screen, take turns)<br>${ks.map(k=>`<label><input type="checkbox" class="hp" value="${k}" ${k=='ilse'?'checked':''}> ${H[k].n}</label>`).join(' ')}<br><button id="solo">Start</button></div>
+${off?'<p>WLAN, phone and TV modes need the Node server. See the README.</p>':`<div class="card"><b>WLAN, phones and TV</b><br><input id="nm" placeholder="Your name" maxlength="16" aria-label="Your name"><select id="hr" aria-label="Hero">${ks.map(k=>`<option value="${k}">${H[k].n}</option>`).join('')}</select><input id="rm" placeholder="Room code" maxlength="4" size="8" aria-label="Room code"><br><button id="jn">Host or join as player</button><button id="tvb">Be the shared TV screen</button><p id="ip"></p></div>`}`;
+ $('solo').onclick=()=>{const c=[...document.querySelectorAll('.hp:checked')].map(x=>x.value);if(!c.length)return;G=new NG.Game();c.forEach(k=>G.addPlayer('',k));draw()};
+ if(!off){fetch('/info').then(r=>r.json()).then(a=>$('ip').textContent='Share: '+a.map(i=>`http://${i}:${location.port||80}`).join('  ')).catch(()=>{});
+  $('jn').onclick=()=>join(0);$('tvb').onclick=()=>join(1)}}
+function join(t){tv=t;net=1;say=t?1:0;ws=new WebSocket((location.protocol=='https:'?'wss':'ws')+'://'+location.host);
+ ws.onopen=()=>ws.send(JSON.stringify({t:'join',accepted:1,name:$('nm').value,hero:$('hr').value,room:$('rm').value,tv:t}));
+ ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.t=='err'){alert(d.m);net=0;return lobby()}you=d.you;S=d.s;code=d.code;draw()};
+ ws.onclose=()=>{if(net){alert('Disconnected.');net=0;lobby()}}}
+function A(a){if(net)ws.send(JSON.stringify(a));else{G.act(G.state.players[G.state.turn].id,a);draw()}}
+function draw(){const s=net?S:G.state,H=NG.H,cur=s.players[s.turn],mine=!tv&&(!net||(cur&&cur.id===you)),free=!tv,K=s.k,e=s.enemy,me=net?s.players.find(p=>p.id===you):cur;
+ const bar=(v,m,c)=>`<div class="bar ${c||''}"><i style="width:${Math.max(0,100*v/m)}%"></i></div>`,b=(l,a,on)=>`<button ${on?'':'disabled'} data-a='${JSON.stringify(a)}'>${l}</button>`;
+ let act='';
+ if(K=='duel')act=b('Strike',{a:'atk'},mine)+b('Guard',{a:'guard'},mine)+b(H[cur.h].sk+(cur.cd?` (${cur.cd})`:''),{a:'sk'},mine&&!cur.cd);
+ else if(K=='debate')act=[['gift','Gift'],['free','Freedom'],['face','Face']].map(x=>b(x[1],{a:'arg',s:x[0]},mine)).join('');
+ else if(K=='barter')act=[10,20,40].map(n=>b(`Offer ${n} knots`,{a:'offer',n},mine&&cur.g>=n)).join('');
+ else if(K=='shop'){act=s.items.map((x,i)=>b(`${x[0]}: ${x[1]}`,{a:'buy',i},free&&me.g>=x[1])).join('')+b('Borrow 30 (owe 40)',{a:'borrow'},free)+b('Repay',{a:'repay'},free&&me.d>0&&me.g>0)+b('Move on',{a:'leave'},free)+(net?'':b('Next player',{a:'switch'},1))}
+ else if(K=='ch')act=s.ch.map((x,i)=>b(x,{a:'ch',i},free)).join('')+(net?'':b('Next player',{a:'switch'},1));
+ else act=b('Play again',{a:'restart'},free);
+ M.className=tv?'tv':'';
+ M.innerHTML=`<h1>The Ninth Gift</h1>${net?`<p>Room <b>${code}</b>${tv?' (shared screen)':''}. Join at this address with that code.</p>`:''}
+<div class="row">${s.players.map(p=>`<div class="card ${cur&&p.id===cur.id&&e?'me':''}"><b>${p.n}</b> (${H[p.h].n})<br>HP ${p.hp}/${p.max}${bar(p.hp,p.max,'hp')}Knots ${p.g}${p.d?` &middot; owes ${p.d}`:''}</div>`).join('')}</div>
+${e?`<div class="card"><b>${e.n}</b> ${e.hp}/${e.max}${bar(e.hp,e.max)}${K=='debate'?`<br>Argues from: <b>${{gift:'Gift',free:'Freedom',face:'Face'}[e.st]}</b>`:''}${K=='barter'?'<br>Resolve falls as you offer knots.':''}</div>`:''}
+<div class="card log">${s.log.slice(-6).map(l=>`<p>${l.m}</p>`).join('')}</div>
+${e&&cur?`<p>Turn: <b>${cur.n}</b></p>`:''}<div>${tv?'':act}</div>`;
+ M.querySelectorAll('button[data-a]').forEach(x=>x.onclick=()=>A(JSON.parse(x.dataset.a)));
+ s.log.filter(l=>l.i>seen).forEach(l=>speak(l.w,l.m));seen=s.log.length?s.log[s.log.length-1].i:seen}
+document.addEventListener('keydown',e=>{if(e.key=='Escape')speechSynthesis&&speechSynthesis.cancel()});
+ok()?lobby():gate();
+</script></html>

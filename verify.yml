@@ -1,0 +1,8 @@
+name: verify
+on: [push, pull_request]
+jobs:
+  seal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test "$(node tools/seal.js verify)" = official
